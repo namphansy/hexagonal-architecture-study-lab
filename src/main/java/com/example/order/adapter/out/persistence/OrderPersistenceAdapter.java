@@ -12,6 +12,7 @@ import java.util.Optional;
 public class OrderPersistenceAdapter implements OrderRepositoryPort {
 
     private final SpringDataOrderRepository repository;
+    private final OrderPersistenceMapper mapper = new OrderPersistenceMapper();
 
     public OrderPersistenceAdapter(SpringDataOrderRepository repository) {
         this.repository = repository;
@@ -19,11 +20,12 @@ public class OrderPersistenceAdapter implements OrderRepositoryPort {
 
     @Override
     public Order save(Order order) {
-        throw new UnsupportedOperationException("JPA mapping exercise intentionally left blank.");
+        OrderJpaEntity savedEntity = repository.save(mapper.toEntity(order));
+        return mapper.toDomain(savedEntity);
     }
 
     @Override
     public Optional<Order> findById(String id) {
-        throw new UnsupportedOperationException("JPA mapping exercise intentionally left blank.");
+        return repository.findById(id).map(mapper::toDomain);
     }
 }
