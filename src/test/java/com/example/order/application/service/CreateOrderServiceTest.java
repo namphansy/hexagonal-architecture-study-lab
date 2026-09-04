@@ -3,6 +3,8 @@ package com.example.order.application.service;
 import com.example.order.application.port.in.CreateOrderCommand;
 import com.example.order.application.port.in.CreateOrderResult;
 import com.example.order.adapter.out.persistence.InMemoryOrderRepositoryAdapter;
+import com.example.order.application.exception.CustomerNotFoundException;
+import com.example.order.application.port.out.CustomerQueryPort;
 import com.example.order.domain.exception.DomainException;
 import com.example.order.domain.model.OrderStatus;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,7 @@ class CreateOrderServiceTest {
     @Test
     void createOrderReturnsCreatedOrderResult() {
         InMemoryOrderRepositoryAdapter repository = new InMemoryOrderRepositoryAdapter();
-        CreateOrderService service = new CreateOrderService(repository, () -> "order-1");
+        CreateOrderService service = new CreateOrderService(customerExists(), repository, () -> "order-1");
 
         CreateOrderResult result = service.createOrder(new CreateOrderCommand(
                 "customer-1",
@@ -38,11 +40,34 @@ class CreateOrderServiceTest {
 
     @Test
     void createOrderUsesDomainValidation() {
-        CreateOrderService service = new CreateOrderService(new InMemoryOrderRepositoryAdapter(), () -> "order-1");
+        CreateOrderService service = new CreateOrderService(
+                customerExists(),
+                new InMemoryOrderRepositoryAdapter(),
+                () -> "order-1"
+        );
 
         assertThrows(DomainException.class, () -> service.createOrder(new CreateOrderCommand(
                 "customer-1",
                 Collections.emptyList()
         )));
+    }
+
+    @Test
+    void createOrderRejectsMissingCustomer() {
+        InMemoryOrderRepositoryAdapter repository = new InMemoryOrderRepositoryAdapter();
+        CreateOrderService service = new CreateOrderService(customerMissing(), repository, () -> "order-1");
+
+        assertThrows(CustomerNotFoundException.class, () -> service.createOrder(new CreateOrderCommand(
+                "missing-customer",
+                Collections.singletonList(new CreateOrderCommand.Item("product-1", 1, BigDecimal.TEN))
+        )));
+    }
+
+    private CustomerQueryPort customerExists() {
+        return customerId -> true;
+    }
+
+    private CustomerQueryPort customerMissing() {
+        return customerId -> false;
     }
 }
