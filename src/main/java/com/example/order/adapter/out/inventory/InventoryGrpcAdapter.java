@@ -1,9 +1,7 @@
 package com.example.order.adapter.out.inventory;
 
 import com.example.order.application.port.out.InventoryPort;
-import org.springframework.stereotype.Component;
 
-@Component
 public class InventoryGrpcAdapter implements InventoryPort {
 
     @Override

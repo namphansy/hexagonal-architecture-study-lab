@@ -4,7 +4,9 @@ import com.example.order.application.port.in.CreateOrderCommand;
 import com.example.order.application.port.in.CreateOrderResult;
 import com.example.order.application.port.in.CreateOrderUseCase;
 import com.example.order.application.exception.CustomerNotFoundException;
+import com.example.order.application.exception.InsufficientInventoryException;
 import com.example.order.application.port.out.CustomerQueryPort;
+import com.example.order.application.port.out.InventoryPort;
 import com.example.order.application.port.out.OrderRepositoryPort;
 import com.example.order.domain.model.Order;
 import com.example.order.domain.model.OrderItem;
@@ -17,19 +19,26 @@ import java.util.function.Supplier;
 public class CreateOrderService implements CreateOrderUseCase {
 
     private final CustomerQueryPort customerQueryPort;
+    private final InventoryPort inventoryPort;
     private final OrderRepositoryPort orderRepository;
     private final Supplier<String> orderIdGenerator;
 
-    public CreateOrderService(CustomerQueryPort customerQueryPort, OrderRepositoryPort orderRepository) {
-        this(customerQueryPort, orderRepository, () -> UUID.randomUUID().toString());
+    public CreateOrderService(
+            CustomerQueryPort customerQueryPort,
+            InventoryPort inventoryPort,
+            OrderRepositoryPort orderRepository
+    ) {
+        this(customerQueryPort, inventoryPort, orderRepository, () -> UUID.randomUUID().toString());
     }
 
     public CreateOrderService(
             CustomerQueryPort customerQueryPort,
+            InventoryPort inventoryPort,
             OrderRepositoryPort orderRepository,
             Supplier<String> orderIdGenerator
     ) {
         this.customerQueryPort = customerQueryPort;
+        this.inventoryPort = inventoryPort;
         this.orderRepository = orderRepository;
         this.orderIdGenerator = orderIdGenerator;
     }
@@ -42,15 +51,25 @@ public class CreateOrderService implements CreateOrderUseCase {
         if (!customerQueryPort.existsById(command.getCustomerId())) {
             throw new CustomerNotFoundException(command.getCustomerId());
         }
+        List<OrderItem> domainItems = toDomainItems(command.getItems());
+        ensureInventoryAvailable(domainItems);
 
         Order order = Order.create(
                 orderIdGenerator.get(),
                 command.getCustomerId(),
-                toDomainItems(command.getItems())
+                domainItems
         );
         Order savedOrder = orderRepository.save(order);
 
         return new CreateOrderResult(savedOrder.getId(), savedOrder.getTotalAmount(), savedOrder.getStatus());
+    }
+
+    private void ensureInventoryAvailable(List<OrderItem> items) {
+        for (OrderItem item : items) {
+            if (!inventoryPort.isAvailable(item.getProductId(), item.getQuantity())) {
+                throw new InsufficientInventoryException(item.getProductId(), item.getQuantity());
+            }
+        }
     }
 
     private List<OrderItem> toDomainItems(List<CreateOrderCommand.Item> items) {
