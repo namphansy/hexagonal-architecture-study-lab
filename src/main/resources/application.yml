@@ -39,3 +39,7 @@ messaging:
     topics:
       create-order-command: order-create-commands
       order-created: order-created
+
+outbox:
+  publisher:
+    fixed-delay-ms: 5000

@@ -6,10 +6,11 @@ import com.example.order.application.port.in.CreateOrderResult;
 import com.example.order.application.port.in.CreateOrderUseCase;
 import com.example.order.application.exception.CustomerNotFoundException;
 import com.example.order.application.exception.InsufficientInventoryException;
+import com.example.order.application.outbox.OutboxEvent;
 import com.example.order.application.port.out.CustomerQueryPort;
 import com.example.order.application.port.out.InventoryPort;
-import com.example.order.application.port.out.OrderEventPublisherPort;
 import com.example.order.application.port.out.OrderRepositoryPort;
+import com.example.order.application.port.out.OutboxRepositoryPort;
 import com.example.order.domain.model.Order;
 import com.example.order.domain.model.OrderItem;
 
@@ -23,29 +24,29 @@ public class CreateOrderService implements CreateOrderUseCase {
     private final CustomerQueryPort customerQueryPort;
     private final InventoryPort inventoryPort;
     private final OrderRepositoryPort orderRepository;
-    private final OrderEventPublisherPort orderEventPublisher;
+    private final OutboxRepositoryPort outboxRepository;
     private final Supplier<String> orderIdGenerator;
 
     public CreateOrderService(
             CustomerQueryPort customerQueryPort,
             InventoryPort inventoryPort,
             OrderRepositoryPort orderRepository,
-            OrderEventPublisherPort orderEventPublisher
+            OutboxRepositoryPort outboxRepository
     ) {
-        this(customerQueryPort, inventoryPort, orderRepository, orderEventPublisher, () -> UUID.randomUUID().toString());
+        this(customerQueryPort, inventoryPort, orderRepository, outboxRepository, () -> UUID.randomUUID().toString());
     }
 
     public CreateOrderService(
             CustomerQueryPort customerQueryPort,
             InventoryPort inventoryPort,
             OrderRepositoryPort orderRepository,
-            OrderEventPublisherPort orderEventPublisher,
+            OutboxRepositoryPort outboxRepository,
             Supplier<String> orderIdGenerator
     ) {
         this.customerQueryPort = customerQueryPort;
         this.inventoryPort = inventoryPort;
         this.orderRepository = orderRepository;
-        this.orderEventPublisher = orderEventPublisher;
+        this.outboxRepository = outboxRepository;
         this.orderIdGenerator = orderIdGenerator;
     }
 
@@ -66,7 +67,7 @@ public class CreateOrderService implements CreateOrderUseCase {
                 domainItems
         );
         Order savedOrder = orderRepository.save(order);
-        orderEventPublisher.publishOrderCreated(OrderCreatedEvent.from(savedOrder));
+        outboxRepository.save(OutboxEvent.orderCreated(OrderCreatedEvent.from(savedOrder)));
 
         return new CreateOrderResult(savedOrder.getId(), savedOrder.getTotalAmount(), savedOrder.getStatus());
     }

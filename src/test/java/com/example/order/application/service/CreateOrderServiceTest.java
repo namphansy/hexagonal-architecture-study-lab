@@ -1,14 +1,13 @@
 package com.example.order.application.service;
 
-import com.example.order.application.event.OrderCreatedEvent;
 import com.example.order.application.port.in.CreateOrderCommand;
 import com.example.order.application.port.in.CreateOrderResult;
+import com.example.order.adapter.out.persistence.InMemoryOutboxRepositoryAdapter;
 import com.example.order.adapter.out.persistence.InMemoryOrderRepositoryAdapter;
 import com.example.order.application.exception.CustomerNotFoundException;
 import com.example.order.application.exception.InsufficientInventoryException;
 import com.example.order.application.port.out.CustomerQueryPort;
 import com.example.order.application.port.out.InventoryPort;
-import com.example.order.application.port.out.OrderEventPublisherPort;
 import com.example.order.domain.exception.DomainException;
 import com.example.order.domain.model.OrderStatus;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,12 +26,12 @@ class CreateOrderServiceTest {
     @Test
     void createOrderReturnsCreatedOrderResult() {
         InMemoryOrderRepositoryAdapter repository = new InMemoryOrderRepositoryAdapter();
-        CapturingOrderEventPublisher eventPublisher = new CapturingOrderEventPublisher();
+        InMemoryOutboxRepositoryAdapter outboxRepository = new InMemoryOutboxRepositoryAdapter();
         CreateOrderService service = new CreateOrderService(
                 customerExists(),
                 inventoryAvailable(),
                 repository,
-                eventPublisher,
+                outboxRepository,
                 () -> "order-1"
         );
 
@@ -49,8 +47,8 @@ class CreateOrderServiceTest {
         assertEquals(0, BigDecimal.valueOf(25).compareTo(result.getTotalAmount()));
         assertEquals(OrderStatus.CREATED, result.getStatus());
         assertTrue(repository.findById("order-1").isPresent());
-        assertTrue(eventPublisher.lastEvent().isPresent());
-        assertEquals("order-1", eventPublisher.lastEvent().get().getOrderId());
+        assertEquals(1, outboxRepository.findUnpublished(100).size());
+        assertEquals("order-1", outboxRepository.findUnpublished(100).get(0).getPayload().getOrderId());
     }
 
     @Test
@@ -59,7 +57,7 @@ class CreateOrderServiceTest {
                 customerExists(),
                 inventoryAvailable(),
                 new InMemoryOrderRepositoryAdapter(),
-                new CapturingOrderEventPublisher(),
+                new InMemoryOutboxRepositoryAdapter(),
                 () -> "order-1"
         );
 
@@ -72,12 +70,12 @@ class CreateOrderServiceTest {
     @Test
     void createOrderRejectsMissingCustomer() {
         InMemoryOrderRepositoryAdapter repository = new InMemoryOrderRepositoryAdapter();
-        CapturingOrderEventPublisher eventPublisher = new CapturingOrderEventPublisher();
+        InMemoryOutboxRepositoryAdapter outboxRepository = new InMemoryOutboxRepositoryAdapter();
         CreateOrderService service = new CreateOrderService(
                 customerMissing(),
                 inventoryAvailable(),
                 repository,
-                eventPublisher,
+                outboxRepository,
                 () -> "order-1"
         );
 
@@ -85,18 +83,18 @@ class CreateOrderServiceTest {
                 "missing-customer",
                 Collections.singletonList(new CreateOrderCommand.Item("product-1", 1, BigDecimal.TEN))
         )));
-        assertFalse(eventPublisher.lastEvent().isPresent());
+        assertTrue(outboxRepository.findUnpublished(100).isEmpty());
     }
 
     @Test
     void createOrderRejectsUnavailableInventory() {
         InMemoryOrderRepositoryAdapter repository = new InMemoryOrderRepositoryAdapter();
-        CapturingOrderEventPublisher eventPublisher = new CapturingOrderEventPublisher();
+        InMemoryOutboxRepositoryAdapter outboxRepository = new InMemoryOutboxRepositoryAdapter();
         CreateOrderService service = new CreateOrderService(
                 customerExists(),
                 inventoryUnavailable(),
                 repository,
-                eventPublisher,
+                outboxRepository,
                 () -> "order-1"
         );
 
@@ -105,7 +103,7 @@ class CreateOrderServiceTest {
                 Collections.singletonList(new CreateOrderCommand.Item("product-1", 1, BigDecimal.TEN))
         )));
         assertFalse(repository.findById("order-1").isPresent());
-        assertFalse(eventPublisher.lastEvent().isPresent());
+        assertTrue(outboxRepository.findUnpublished(100).isEmpty());
     }
 
     private CustomerQueryPort customerExists() {
@@ -122,19 +120,5 @@ class CreateOrderServiceTest {
 
     private InventoryPort inventoryUnavailable() {
         return (productId, quantity) -> false;
-    }
-
-    private static class CapturingOrderEventPublisher implements OrderEventPublisherPort {
-
-        private OrderCreatedEvent lastEvent;
-
-        @Override
-        public void publishOrderCreated(OrderCreatedEvent event) {
-            this.lastEvent = event;
-        }
-
-        Optional<OrderCreatedEvent> lastEvent() {
-            return Optional.ofNullable(lastEvent);
-        }
     }
 }
