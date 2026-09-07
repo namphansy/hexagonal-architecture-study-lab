@@ -968,6 +968,35 @@ Kafka Consumer
 CreateOrderUseCase
 ```
 
+Trong project lab, có thể giả lập inbound Kafka bằng cách thêm:
+
+```text
+adapter/in/messaging/CreateOrderKafkaListener.java
+adapter/in/messaging/CreateOrderMessage.java
+```
+
+Luồng lúc này:
+
+```text
+Kafka topic: order-create-commands
+      |
+      v
+CreateOrderKafkaListener
+      |
+      v
+CreateOrderCommand
+      |
+      v
+CreateOrderUseCase
+      |
+      v
+CreateOrderService
+```
+
+`CreateOrderKafkaListener` là Inbound Adapter. Nó chỉ chịu trách nhiệm nhận message Kafka, chuyển message thành command của application, rồi gọi `CreateOrderUseCase`.
+
+Không đưa `KafkaConsumer`, `@KafkaListener` hoặc Kafka DTO vào `domain` hay `application`.
+
 REST và Kafka cùng gọi một Use Case:
 
 ```text

@@ -4,6 +4,7 @@ import com.example.order.application.port.in.CreateOrderUseCase;
 import com.example.order.application.port.in.GetOrderUseCase;
 import com.example.order.application.port.out.CustomerQueryPort;
 import com.example.order.application.port.out.InventoryPort;
+import com.example.order.application.port.out.OrderEventPublisherPort;
 import com.example.order.application.port.out.OrderRepositoryPort;
 import com.example.order.application.service.CreateOrderService;
 import com.example.order.application.service.GetOrderService;
@@ -18,9 +19,10 @@ public class BeanConfiguration {
     public CreateOrderUseCase createOrderUseCase(
             CustomerQueryPort customerQueryPort,
             InventoryPort inventoryPort,
-            OrderRepositoryPort orderRepository
+            OrderRepositoryPort orderRepository,
+            OrderEventPublisherPort orderEventPublisher
     ) {
-        return new CreateOrderService(customerQueryPort, inventoryPort, orderRepository);
+        return new CreateOrderService(customerQueryPort, inventoryPort, orderRepository, orderEventPublisher);
     }
 
     @Bean
