@@ -3,7 +3,9 @@ package com.example.order.config;
 import com.example.order.application.port.in.CreateOrderUseCase;
 import com.example.order.application.port.in.GetOrderUseCase;
 import com.example.order.application.port.in.PublishOutboxEventsUseCase;
+import com.example.order.application.port.in.UploadFileUseCase;
 import com.example.order.application.port.out.CustomerQueryPort;
+import com.example.order.application.port.out.FileStoragePort;
 import com.example.order.application.port.out.InventoryPort;
 import com.example.order.application.port.out.OrderEventPublisherPort;
 import com.example.order.application.port.out.OrderRepositoryPort;
@@ -11,6 +13,7 @@ import com.example.order.application.port.out.OutboxRepositoryPort;
 import com.example.order.application.service.CreateOrderService;
 import com.example.order.application.service.GetOrderService;
 import com.example.order.application.service.PublishOutboxEventsService;
+import com.example.order.application.service.UploadFileService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -47,6 +50,11 @@ public class BeanConfiguration {
             OrderEventPublisherPort orderEventPublisher
     ) {
         return new PublishOutboxEventsService(outboxRepository, orderEventPublisher);
+    }
+
+    @Bean
+    public UploadFileUseCase uploadFileUseCase(FileStoragePort fileStoragePort) {
+        return new UploadFileService(fileStoragePort);
     }
 
     @Bean
